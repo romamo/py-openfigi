@@ -1,0 +1,61 @@
+[project]
+name = "py-openfigi"
+version = "0.1.0"
+description = "OpenFIGI data source for Python"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [{name = "Roman Medvedev", email = "pypi@romavm.dev"}]
+dependencies = [
+    "requests>=2.32.0",
+    "pydantic-market-data>=0.3.0",
+    "pydantic-settings>=2.7.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/romamo/py-openfigi"
+Repository = "https://github.com/romamo/py-openfigi"
+Issues = "https://github.com/romamo/py-openfigi/issues"
+
+[project.scripts]
+openfigi = "openfigi.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/openfigi"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "/src",
+    "/tests",
+    "/CHANGELOG.md",
+]
+exclude = [
+    "/.github",
+    "/uv.lock",
+    "/tmp",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.uv]
+dev-dependencies = [
+    "ruff",
+    "pytest",
+    "mypy>=1.15.0",
+    "bandit>=1.8.3",
+    "pytest-cov>=6.0.0",
+    "types-requests>=2.31.0",
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "PLC", "PLE"]

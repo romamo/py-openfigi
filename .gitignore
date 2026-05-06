@@ -1,0 +1,12 @@
+.DS_Store
+.env
+__pycache__
+*.pyc
+/.idea/inspectionProfiles/profiles_settings.xml
+/.idea/inspectionProfiles/Project_Default.xml
+/.idea/.gitignore
+/.idea/json_assistant_history.xml
+/.idea/misc.xml
+/.idea/modules.xml
+/.idea/py-openfigi.iml
+/.idea/vcs.xml
