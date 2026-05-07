@@ -9,7 +9,7 @@ authors = [{name = "Roman Medvedev", email = "pypi@romavm.dev"}]
 dependencies = [
     "requests>=2.32.0",
     "pydantic-market-data>=0.3.0",
-    "pydantic-settings>=2.7.0",
+    "agentyper>=0.1.12",
 ]
 
 [project.urls]
@@ -52,6 +52,7 @@ dev-dependencies = [
 [tool.pytest.ini_options]
 pythonpath = ["src"]
 testpaths = ["tests"]
+markers = ["integration: tests that call the live OpenFIGI API"]
 
 [tool.ruff]
 line-length = 100

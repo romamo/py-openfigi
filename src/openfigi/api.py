@@ -60,6 +60,9 @@ def _apply_filters(candidates: list[Security], criteria: SecurityQuery) -> list[
     if criteria.asset_class:
         ac = criteria.asset_class.upper()
         filtered = [c for c in filtered if c.asset_class and ac in c.asset_class.upper()]
+    if criteria.symbol and not criteria.figi:
+        sym = str(criteria.symbol).upper()
+        filtered = [c for c in filtered if c.symbol and str(c.symbol).upper() == sym]
     return filtered
 
 
@@ -81,7 +84,36 @@ class OpenFIGIDataSource:
         return [self._to_security(item) for item in data.data]
 
     def resolve(self, criteria: SecurityQuery) -> Security | None:
-        """Resolve a security; priority: figi > isin > symbol > description."""
+        """Resolve a SecurityQuery to a single Security using a two-phase approach.
+
+        Phase 1 — API query (primary identifier, strict priority):
+          figi        → /v3/mapping with idType=ID_BB_GLOBAL; uniquely identifies one listing,
+                        so supplementary filters narrow but never conflict.
+          isin        → /v3/mapping with idType=ID_ISIN; one ISIN maps to many listings
+                        (different exchanges / currencies), so supplementary filters are
+                        essential for disambiguation.
+          symbol      → /v3/mapping with idType=TICKER; used when neither figi nor isin
+                        is available.
+          description → /v3/search keyword endpoint; no structured mapping job is built.
+
+        In all mapping-job cases, currency, exchange, and asset_class are embedded in
+        the job as API-level constraints (MappingJob.currency / exchCode / marketSecDes).
+        Note: when figi is the primary identifier, adding currency or exchange constraints
+        that do not match the listing causes the API to return zero results.
+
+        Phase 2 — post-API filtering (_apply_filters + _pick_best):
+          exchange    → substring match on Security.exchange
+          asset_class → substring match on Security.asset_class
+          symbol      → exact case-insensitive match on Security.symbol;
+                        skipped when figi is set, because the query symbol may differ
+                        from the listing's actual ticker.
+
+        currency is applied only at Phase 1 (API constraint). The mapping response does
+        not return currency, so it is not available for post-filtering.
+
+        Returns the first candidate surviving all filters, or None if none remain.
+        Logs a DEBUG message when more than one candidate remains after filtering.
+        """
         job: MappingJob | None = None
 
         if criteria.figi:
@@ -97,18 +129,42 @@ class OpenFIGIDataSource:
         if job is None:
             return None
 
+        filtered, _ = self.resolve_candidates(criteria)
+        return filtered[0] if filtered else None
+
+    def resolve_candidates(self, criteria: SecurityQuery) -> tuple[list[Security], int]:
+        """Return (filtered_candidates, total_api_count) for the given criteria.
+
+        filtered_candidates — all results surviving Phase 2 filters, in API order.
+        total_api_count    — raw candidate count returned by the API before any filtering.
+        """
+        job: MappingJob | None = None
+
+        if criteria.figi:
+            job = self._build_job(IdType.ID_BB_GLOBAL, str(criteria.figi), criteria)
+        elif criteria.isin:
+            job = self._build_job(IdType.ID_ISIN, str(criteria.isin), criteria)
+        elif criteria.symbol:
+            job = self._build_job(IdType.TICKER, str(criteria.symbol), criteria)
+        elif criteria.description:
+            all_results = self.search(criteria.description)
+            return _apply_filters(all_results, criteria), len(all_results)
+
+        if job is None:
+            return [], 0
+
         results_raw = self.map_identifiers([job])
         result = results_raw[0]
 
         if result.error:
             logger.debug("Mapping error: %s", result.error)
-            return None
+            return [], 0
         if not result.data:
-            return None
+            return [], 0
 
-        isin_str = str(criteria.isin) if criteria.isin else None
-        candidates = [self._to_security(r, isin=isin_str) for r in result.data]
-        return self._pick_best(candidates, criteria)
+        currency_str = str(criteria.currency) if criteria.currency else None
+        candidates = [self._to_security(r, currency=currency_str) for r in result.data]
+        return _apply_filters(candidates, criteria), len(candidates)
 
     def map_identifiers(self, jobs: list[MappingJob]) -> list[MappingResult]:
         """Bulk map identifiers via /v3/mapping. Returns one result per job."""
@@ -138,7 +194,7 @@ class OpenFIGIDataSource:
             marketSecDes=_resolve_market_sector(criteria.asset_class),
         )
 
-    def _to_security(self, item: _FIGIBase, isin: str | None = None) -> Security:
+    def _to_security(self, item: _FIGIBase, currency: str | None = None) -> Security:
         asset_class = _MARKET_SECTOR_TO_ASSET_CLASS.get(item.marketSector or "")
         symbol = item.ticker or item.compositeFIGI or item.figi
         figi_val = item.compositeFIGI or item.figi
@@ -148,11 +204,13 @@ class OpenFIGIDataSource:
             exchange=item.exchCode,
             asset_class=asset_class,
             figi=figi_val,
-            isin=isin,
+            currency=currency,
         )
 
     def _pick_best(self, candidates: list[Security], criteria: SecurityQuery) -> Security | None:
         filtered = _apply_filters(candidates, criteria)
+        if len(filtered) > 1:
+            logger.debug("Ambiguous mapping: %d candidates after filtering, returning first", len(filtered))
         return filtered[0] if filtered else None
 
 
