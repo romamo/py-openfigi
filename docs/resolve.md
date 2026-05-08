@@ -45,7 +45,7 @@ After the API returns candidates, `_apply_filters` narrows them down:
 
 **`currency`** is applied only at Phase 1 (API constraint). The mapping response does not return currency, so it is not available as a post-filter. The `Security` returned contains only values provided by the API.
 
-`_pick_best` returns the first surviving candidate, or `None` if none remain. When more than one candidate survives, a `DEBUG` message is logged.
+`resolve` returns the first surviving candidate, or `None` if none remain. When more than one candidate survives, a `DEBUG` message is logged.
 
 ---
 

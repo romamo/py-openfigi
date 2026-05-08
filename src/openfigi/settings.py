@@ -8,6 +8,7 @@ class OpenFIGISettings(BaseSettings):
         env_prefix="OPENFIGI_",
         env_file=".env",
         env_file_encoding="utf-8",
+        extra="ignore",
     )
 
     api_key: str | None = None

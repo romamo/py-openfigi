@@ -161,6 +161,7 @@ class OpenFIGIDataSource:
             name=item.name or item.figi,
             exchange=item.exchCode,
             asset_class=asset_class,
+            security_type=item.securityType,
             figi=figi_val,
             currency=currency,
         )
