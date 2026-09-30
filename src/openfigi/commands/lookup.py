@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import agentyper
 from pydantic import ValidationError
-from pydantic_market_data.models import SecurityQuery
+from pydantic_market_data.models import AssetClass, SecurityQuery
 
 from ..api import OpenFIGIDataSource
 
@@ -16,14 +16,12 @@ def lookup(
     currency: str | None = agentyper.Option(
         None, "--currency", help="Currency code (e.g. USD, EUR)"
     ),
-    asset_class: str | None = agentyper.Option(
-        None, "--asset-class", help="Asset class (Equity, Commodity, etc.)"
+    asset_class: AssetClass | None = agentyper.Option(
+        None, "--asset-class", help="Asset class (equity, commodity, etc.)"
     ),
     limit: int = agentyper.Option(1, "--limit", help="Maximum number of results to return"),
 ) -> None:
     """Look up a security via OpenFIGI."""
-    ds = OpenFIGIDataSource()
-
     if not (figi or isin or symbol or desc):
         agentyper.exit_error(
             "Provide --figi, --isin, --symbol, or --desc",
@@ -43,6 +41,7 @@ def lookup(
     except ValidationError as exc:
         agentyper.format_pydantic_error(exc)
 
+    ds = OpenFIGIDataSource()
     results, total = ds.resolve_candidates(criteria)
     results = results[:limit]
 
