@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.1.4] - 2026-09-30
+
+### Changed
+- `Security.asset_class` is now a `pydantic-market-data` `AssetClass` enum mapped from the OpenFIGI market sector: `Equity` and `Pfd` to `EQUITY`; `Corp`, `Govt`, `Mtge` and `Muni` to `FIXED_INCOME`; `M-Mkt` to `CASH`; `Index` to `INDEX`; `Comdty` to `COMMODITY`; `Curncy` to `FX`
+- Bumped `pydantic-market-data` dependency to `>=0.4.0`
+
 ## [0.1.3] - 2026-05-08
 
 ### Added

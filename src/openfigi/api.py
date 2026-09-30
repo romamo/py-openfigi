@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 
-from pydantic_market_data.models import Security, SecurityQuery
+from pydantic_market_data.models import AssetClass, Security, SecurityQuery
 
 from .client import OpenFIGIClient
 from .models import (
@@ -20,17 +20,17 @@ from .settings import OpenFIGISettings
 
 logger = logging.getLogger(__name__)
 
-_MARKET_SECTOR_TO_ASSET_CLASS: dict[str, str] = {
-    "Equity": "Equity",
-    "Corp": "Corporate Bond",
-    "Govt": "Government Bond",
-    "Mtge": "Mortgage",
-    "M-Mkt": "Money Market",
-    "Muni": "Municipal Bond",
-    "Index": "Index",
-    "Comdty": "Commodity",
-    "Curncy": "Currency",
-    "Pfd": "Preferred",
+_MARKET_SECTOR_TO_ASSET_CLASS: dict[str, AssetClass] = {
+    "Equity": AssetClass.EQUITY,
+    "Corp": AssetClass.FIXED_INCOME,
+    "Govt": AssetClass.FIXED_INCOME,
+    "Mtge": AssetClass.FIXED_INCOME,
+    "M-Mkt": AssetClass.CASH,
+    "Muni": AssetClass.FIXED_INCOME,
+    "Index": AssetClass.INDEX,
+    "Comdty": AssetClass.COMMODITY,
+    "Curncy": AssetClass.FX,
+    "Pfd": AssetClass.EQUITY,
 }
 
 _ASSET_CLASS_TO_MARKET_SECTOR: dict[str, MarketSector] = {

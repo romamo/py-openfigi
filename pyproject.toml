@@ -8,7 +8,7 @@ license = {text = "MIT"}
 authors = [{name = "Roman Medvedev", email = "pypi@romavm.dev"}]
 dependencies = [
     "requests>=2.32.0",
-    "pydantic-market-data>=0.3.0",
+    "pydantic-market-data>=0.4.0",
     "agentyper>=0.1.12",
 ]
 
