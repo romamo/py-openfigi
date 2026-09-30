@@ -25,6 +25,7 @@ class OpenFIGIClient:
             backoff_factor=2,
             status_forcelist=[429, 500, 502, 503, 504],
             allowed_methods=["HEAD", "GET", "POST"],
+            raise_on_status=False,
         )
         adapter = HTTPAdapter(max_retries=retries)
         self.session.mount("https://", adapter)

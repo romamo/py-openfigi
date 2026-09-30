@@ -1,59 +1,102 @@
 from __future__ import annotations
 
-import agentyper
+from dataclasses import dataclass
+
+import requests
 from pydantic import ValidationError
 from pydantic_market_data.models import AssetClass, SecurityQuery
+from treaty import Ctx, Exit, Flag, ParseError
 
 from ..api import OpenFIGIDataSource
 
+_IDENTIFIERS = ("figi", "isin", "symbol", "desc")
+# OpenFIGI rate limits reset per minute; used when a 429 carries no Retry-After header
+_RATE_LIMIT_WAIT_MS = 60_000
 
-def lookup(
-    figi: str | None = agentyper.Option(None, "--figi", help="FIGI identifier"),
-    isin: str | None = agentyper.Option(None, "--isin", help="ISIN code"),
-    symbol: str | None = agentyper.Option(None, "--symbol", help="Security symbol (ticker)"),
-    desc: str | None = agentyper.Option(None, "--desc", help="Security name or description"),
-    exchange: str | None = agentyper.Option(None, "--exchange", help="Exchange code (e.g. FP, LN)"),
-    currency: str | None = agentyper.Option(
-        None, "--currency", help="Currency code (e.g. USD, EUR)"
-    ),
-    asset_class: AssetClass | None = agentyper.Option(
-        None, "--asset-class", help="Asset class (equity, commodity, etc.)"
-    ),
-    limit: int = agentyper.Option(1, "--limit", help="Maximum number of results to return"),
-) -> None:
-    """Look up a security via OpenFIGI."""
-    if not (figi or isin or symbol or desc):
-        agentyper.exit_error(
-            "Provide --figi, --isin, --symbol, or --desc",
-            code=agentyper.ExitCode.ARG_ERROR,
+
+@dataclass(frozen=True, slots=True)
+class LookupArgs:
+    figi: str | None = Flag(default=None, description="FIGI identifier")
+    isin: str | None = Flag(default=None, description="ISIN code")
+    symbol: str | None = Flag(default=None, description="Security symbol (ticker)")
+    desc: str | None = Flag(default=None, description="Security name or description")
+    exchange: str | None = Flag(default=None, description="Exchange code (e.g. FP, LN)")
+    currency: str | None = Flag(default=None, description="Currency code (e.g. USD, EUR)")
+    asset_class: AssetClass | None = Flag(default=None, description="Asset class")
+
+    def __post_init__(self) -> None:
+        if not any(getattr(self, name) for name in _IDENTIFIERS):
+            raise ParseError(
+                "Provide --figi, --isin, --symbol, or --desc",
+                context={"field": "figi"},
+                suggestion="pass one identifier, e.g. --isin US0378331005",
+            )
+        try:
+            self.query()
+        except ValidationError as exc:
+            raise ParseError.combine(
+                [
+                    ParseError(err["msg"], context={"field": str(err["loc"][0])})
+                    for err in exc.errors()
+                ]
+            ) from exc
+
+    def query(self) -> SecurityQuery:
+        return SecurityQuery(
+            figi=self.figi,
+            isin=self.isin,
+            symbol=self.symbol,
+            description=self.desc,
+            exchange=self.exchange,
+            currency=self.currency,
+            asset_class=self.asset_class,
         )
 
-    try:
-        criteria = SecurityQuery(
-            figi=figi,
-            isin=isin,
-            symbol=symbol,
-            description=desc,
-            exchange=exchange,
-            currency=currency,
-            asset_class=asset_class,
-        )
-    except ValidationError as exc:
-        agentyper.format_pydantic_error(exc)
 
+@dataclass(frozen=True, slots=True)
+class Match:
+    symbol: str
+    name: str
+    exchange: str | None
+    country: str | None
+    currency: str | None
+    asset_class: str | None
+    security_type: str | None
+    isin: str | None
+    figi: str | None
+
+
+def lookup(args: LookupArgs, ctx: Ctx) -> list[Match]:
     ds = OpenFIGIDataSource()
-    results, total = ds.resolve_candidates(criteria)
-    results = results[:limit]
+    try:
+        results, _ = ds.resolve_candidates(args.query())
+    except requests.HTTPError as exc:
+        raise _http_error(exc) from exc
+    except requests.Timeout as exc:
+        raise Exit.TIMEOUT(f"OpenFIGI did not answer in time: {exc}") from exc
+    except requests.ConnectionError as exc:
+        raise Exit.UNAVAILABLE(f"Cannot reach OpenFIGI: {exc}") from exc
 
     if not results:
-        agentyper.exit_error("Security not found", code=agentyper.ExitCode.NOT_FOUND)
+        raise Exit.NOT_FOUND("Security not found")
+    return [Match(**r.model_dump(mode="json")) for r in results]
 
-    num_results = len(results)
-    is_partial = num_results < total
-    agentyper.set_pagination(
-        total=total,
-        returned=num_results,
-        truncated=is_partial,
-        has_more=is_partial,
-    )
-    agentyper.output([r.model_dump(mode="json") for r in results])
+
+def _http_error(exc: requests.HTTPError) -> Exception:
+    status = exc.response.status_code
+    if status in (401, 403):
+        return Exit.AUTH_REQUIRED(
+            f"OpenFIGI rejected the API key (HTTP {status})",
+            fix_required="OPENFIGI_API_KEY must be a valid OpenFIGI API key, or unset",
+        )
+    if status == 429:
+        retry_after = exc.response.headers.get("Retry-After", "")
+        wait_ms = int(retry_after) * 1000 if retry_after.isdigit() else _RATE_LIMIT_WAIT_MS
+        return Exit.RATE_LIMITED(
+            "OpenFIGI rate limit exceeded",
+            retry_after_ms=wait_ms,
+            suggestion="wait and retry, or set OPENFIGI_API_KEY for a higher limit",
+        )
+    if status >= 500:
+        return Exit.UNAVAILABLE(f"OpenFIGI returned HTTP {status}")
+    return exc

@@ -1,5 +1,18 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed
+- **Breaking:** requires Python 3.14+ (was 3.10+)
+- **Breaking:** the CLI is built on `treaty` instead of the deprecated `agentyper`. Output is treaty's envelope (`ok`, `data`, `error`, `meta`), and invalid arguments exit `2` (was `3`)
+- CLI `lookup --limit` is treaty's pagination flag: `0` returns every match, and `--cursor` gets the next page. `meta.pagination.total` counts the matches after filtering, not the raw API candidates
+- `OpenFIGIClient` returns the last response once retries on 429 and 5xx run out, so `raise_for_status()` raises `requests.HTTPError` with the status instead of `requests.exceptions.RetryError`
+- `IdType`, `MarketSector` and `OptionType` are `StrEnum`s
+
+### Fixed
+- CLI `lookup` answers a rejected API key, a rate limit, a timeout, or an unreachable or failing OpenFIGI with `AUTH_REQUIRED`, `RATE_LIMITED`, `TIMEOUT` or `UNAVAILABLE` instead of a traceback and exit `1`
+- CLI `lookup --limit` rejects negative values; `--limit -5` returned all but the last 5 matches, and `--limit 0` answered "Security not found"
+
 ## [0.1.5] - 2026-09-30
 
 ### Fixed
