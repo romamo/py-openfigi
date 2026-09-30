@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.1.5] - 2026-09-30
+
+### Fixed
+- CLI `lookup` validates its arguments before creating the OpenFIGI data source
+- CLI `--asset-class` accepts the `AssetClass` values (`equity`, `fixed_income`, `commodity`, etc.) and lists them when given an invalid one; the help text suggested capitalised values (`Equity`) that were rejected
+
 ## [0.1.4] - 2026-09-30
 
 ### Changed
