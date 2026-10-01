@@ -9,7 +9,7 @@ authors = [{name = "Roman Medvedev", email = "pypi@romavm.dev"}]
 dependencies = [
     "requests>=2.32.0",
     "pydantic-market-data>=0.4.0",
-    "treaty>=1.0.0rc5,<1.1",
+    "treaty>=1.0.0rc10,<1.1",
 ]
 
 [project.urls]

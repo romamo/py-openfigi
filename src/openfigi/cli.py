@@ -1,12 +1,24 @@
 from __future__ import annotations
 
 from importlib.metadata import version
+from typing import Any
 
+from pydantic import BaseModel
 from treaty import App
 
-from .commands.lookup import lookup
+from .commands.lookup import IDENTIFIERS, lookup
+
+
+def _model_schema(cls: type[BaseModel]) -> dict[str, Any]:
+    return cls.model_json_schema(mode="serialization")
+
+
+def _model_dump(obj: BaseModel) -> object:
+    return obj.model_dump(mode="json", by_alias=True)
+
 
 app = App("openfigi", version=version("py-openfigi2"), description="OpenFIGI CLI Tool")
+app.output_adapter(BaseModel, schema=_model_schema, dump=_model_dump)
 app.command(
     "lookup",
     description="Look up a security via OpenFIGI",
@@ -20,6 +32,7 @@ app.command(
     external=True,
     default_limit=1,
     ordered=True,
+    requires=[IDENTIFIERS],
 )(lookup)
 
 

@@ -16,7 +16,7 @@ def _http_failure(status: int, headers: dict[str, str] | None = None) -> request
 def test_lookup_without_identifier_is_arg_error():
     envelope = app.call("lookup", {})
     assert envelope.exit_code == 2
-    assert envelope.error.message == "Provide --figi, --isin, --symbol, or --desc"
+    assert envelope.error.message == "Pass at least one of --figi, --isin, --symbol, or --desc"
 
 
 @pytest.mark.parametrize("isin", ["BAD", "US0000000000"])

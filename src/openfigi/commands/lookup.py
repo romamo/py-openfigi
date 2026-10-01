@@ -4,12 +4,12 @@ from dataclasses import dataclass
 
 import requests
 from pydantic import ValidationError
-from pydantic_market_data.models import AssetClass, SecurityQuery
-from treaty import Ctx, Exit, Flag, ParseError
+from pydantic_market_data.models import AssetClass, Security, SecurityQuery
+from treaty import Ctx, Exit, Flag, ParseError, RequiresAny
 
 from ..api import OpenFIGIDataSource
 
-_IDENTIFIERS = ("figi", "isin", "symbol", "desc")
+IDENTIFIERS = RequiresAny(("figi", "isin", "symbol", "desc"))
 # OpenFIGI rate limits reset per minute; used when a 429 carries no Retry-After header
 _RATE_LIMIT_WAIT_MS = 60_000
 
@@ -25,12 +25,6 @@ class LookupArgs:
     asset_class: AssetClass | None = Flag(default=None, description="Asset class")
 
     def __post_init__(self) -> None:
-        if not any(getattr(self, name) for name in _IDENTIFIERS):
-            raise ParseError(
-                "Provide --figi, --isin, --symbol, or --desc",
-                context={"field": "figi"},
-                suggestion="pass one identifier, e.g. --isin US0378331005",
-            )
         try:
             self.query()
         except ValidationError as exc:
@@ -53,20 +47,7 @@ class LookupArgs:
         )
 
 
-@dataclass(frozen=True, slots=True)
-class Match:
-    symbol: str
-    name: str
-    exchange: str | None
-    country: str | None
-    currency: str | None
-    asset_class: str | None
-    security_type: str | None
-    isin: str | None
-    figi: str | None
-
-
-def lookup(args: LookupArgs, ctx: Ctx) -> list[Match]:
+def lookup(args: LookupArgs, ctx: Ctx) -> list[Security]:
     ds = OpenFIGIDataSource()
     try:
         results, _ = ds.resolve_candidates(args.query())
@@ -79,7 +60,7 @@ def lookup(args: LookupArgs, ctx: Ctx) -> list[Match]:
 
     if not results:
         raise Exit.NOT_FOUND("Security not found")
-    return [Match(**r.model_dump(mode="json")) for r in results]
+    return results
 
 
 def _http_error(exc: requests.HTTPError) -> Exception:

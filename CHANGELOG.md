@@ -8,6 +8,7 @@
 - CLI `lookup --limit` is treaty's pagination flag: `0` returns every match, and `--cursor` gets the next page. `meta.pagination.total` counts the matches after filtering, not the raw API candidates
 - `OpenFIGIClient` returns the last response once retries on 429 and 5xx run out, so `raise_for_status()` raises `requests.HTTPError` with the status instead of `requests.exceptions.RetryError`
 - `IdType`, `MarketSector` and `OptionType` are `StrEnum`s
+- CLI `lookup` declares "at least one of `--figi`, `--isin`, `--symbol`, `--desc`" as a rule, so `--help` and `--schema` show it, and returns `Security` models, so `--output-schema` carries their enums and patterns
 
 ### Fixed
 - CLI `lookup` answers a rejected API key, a rate limit, a timeout, or an unreachable or failing OpenFIGI with `AUTH_REQUIRED`, `RATE_LIMITED`, `TIMEOUT` or `UNAVAILABLE` instead of a traceback and exit `1`
