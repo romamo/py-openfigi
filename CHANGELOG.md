@@ -10,7 +10,11 @@
 - `IdType`, `MarketSector` and `OptionType` are `StrEnum`s
 - CLI `lookup` declares "at least one of `--figi`, `--isin`, `--symbol`, `--desc`" as a rule, so `--help` and `--schema` show it, and returns `Security` models, so `--output-schema` carries their enums and patterns
 
+### Added
+- `OpenFIGIClient` takes `proxy`, `ca_bundle` and `trust_env` to override what `requests` reads from the environment
+
 ### Fixed
+- CLI `lookup` honors `--proxy` and `--no-proxy`, which treaty advertised but the OpenFIGI client ignored; `HTTPS_PROXY`, `NO_PROXY` and `REQUESTS_CA_BUNDLE` resolve as before
 - CLI `lookup` answers a rejected API key, a rate limit, a timeout, or an unreachable or failing OpenFIGI with `AUTH_REQUIRED`, `RATE_LIMITED`, `TIMEOUT` or `UNAVAILABLE` instead of a traceback and exit `1`
 - CLI `lookup --limit` rejects negative values; `--limit -5` returned all but the last 5 matches, and `--limit 0` answered "Security not found"
 

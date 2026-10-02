@@ -8,6 +8,8 @@ from pydantic_market_data.models import AssetClass, Security, SecurityQuery
 from treaty import Ctx, Exit, Flag, ParseError, RequiresAny
 
 from ..api import OpenFIGIDataSource
+from ..client import OpenFIGIClient
+from ..settings import OpenFIGISettings
 
 IDENTIFIERS = RequiresAny(("figi", "isin", "symbol", "desc"))
 # OpenFIGI rate limits reset per minute; used when a 429 carries no Retry-After header
@@ -48,7 +50,14 @@ class LookupArgs:
 
 
 def lookup(args: LookupArgs, ctx: Ctx) -> list[Security]:
-    ds = OpenFIGIDataSource()
+    # treaty resolved --proxy, --no-proxy and the proxy and CA variables already
+    client = OpenFIGIClient(
+        api_key=OpenFIGISettings().api_key,
+        proxy=ctx.network.proxy_for(OpenFIGIClient.BASE_URL),
+        ca_bundle=ctx.network.ca_bundle,
+        trust_env=False,
+    )
+    ds = OpenFIGIDataSource(client=client)
     try:
         results, _ = ds.resolve_candidates(args.query())
     except requests.HTTPError as exc:

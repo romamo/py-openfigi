@@ -1,8 +1,11 @@
+from pathlib import Path
+
 import pytest
 import requests
 from treaty import CliExit
 
 from openfigi.cli import app
+from openfigi.client import OpenFIGIClient
 from openfigi.commands.lookup import _http_error
 
 
@@ -55,3 +58,18 @@ def test_rate_limit_uses_retry_after_header():
 def test_unexpected_http_error_is_reraised():
     failure = _http_failure(400)
     assert _http_error(failure) is failure
+
+
+def test_client_uses_given_proxy_and_ca_bundle_only():
+    client = OpenFIGIClient(
+        proxy="http://proxy.example:3128", ca_bundle=Path("/tmp/ca.pem"), trust_env=False
+    )
+    assert client.session.proxies == {"https": "http://proxy.example:3128"}
+    assert client.session.verify == "/tmp/ca.pem"
+    assert client.session.trust_env is False
+
+
+def test_client_reads_environment_by_default():
+    client = OpenFIGIClient()
+    assert client.session.proxies == {}
+    assert client.session.trust_env is True

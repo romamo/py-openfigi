@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
 import requests
@@ -10,8 +11,22 @@ from urllib3.util.retry import Retry
 class OpenFIGIClient:
     BASE_URL = "https://api.openfigi.com"
 
-    def __init__(self, api_key: str | None = None):
+    def __init__(
+        self,
+        api_key: str | None = None,
+        *,
+        proxy: str | None = None,
+        ca_bundle: Path | None = None,
+        trust_env: bool = True,
+    ):
+        """``proxy`` and ``ca_bundle`` override the environment; ``trust_env=False`` stops
+        ``requests`` reading ``HTTPS_PROXY``, ``REQUESTS_CA_BUNDLE`` and the rest itself"""
         self.session = requests.Session()
+        self.session.trust_env = trust_env
+        if proxy is not None:
+            self.session.proxies = {"https": proxy}
+        if ca_bundle is not None:
+            self.session.verify = str(ca_bundle)
         headers: dict[str, str] = {
             "Content-Type": "application/json",
             "Accept": "application/json",
