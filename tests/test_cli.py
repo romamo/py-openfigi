@@ -2,14 +2,14 @@ from pathlib import Path
 
 import pytest
 import requests
-from pydantic_market_data.models import SecurityQuery
+from pydantic_market_data.models import AssetClass, SecurityQuery
 from treaty import CliExit
 from urllib3.exceptions import MaxRetryError, NewConnectionError, ReadTimeoutError
 
-from openfigi.api import OpenFIGIDataSource
+from openfigi.api import SUPPORTED_ASSET_CLASSES, OpenFIGIDataSource
 from openfigi.cli import app
 from openfigi.client import OpenFIGIClient
-from openfigi.commands.lookup import _connection_error, _http_error
+from openfigi.commands.lookup import LookupArgs, _connection_error, _http_error
 from openfigi.models import IdType
 
 
@@ -36,6 +36,40 @@ def test_lookup_invalid_isin_is_arg_error(isin: str):
 def test_lookup_unknown_asset_class_is_arg_error():
     envelope = app.call("lookup", {"isin": "US0378331005", "asset_class": "nope"})
     assert envelope.exit_code == 2
+
+
+@pytest.mark.parametrize("asset_class", ["real_estate", "crypto", "derivative", "alternative"])
+def test_lookup_asset_class_without_market_sector_is_arg_error(asset_class: str):
+    # No OpenFIGI market sector maps to these, so the lookup could only ever be NOT_FOUND
+    envelope = app.call("lookup", {"symbol": "O", "exchange": "US", "asset_class": asset_class})
+    assert envelope.exit_code == 2
+    assert envelope.error.errors[0]["field"] == "asset-class"
+    assert envelope.error.context["allowed"] == [
+        "equity",
+        "fixed_income",
+        "cash",
+        "commodity",
+        "fx",
+        "index",
+    ]
+    assert envelope.error.message.endswith("equity, fixed_income, cash, commodity, fx, index.")
+
+
+@pytest.mark.parametrize("asset_class", SUPPORTED_ASSET_CLASSES)
+def test_lookup_supported_asset_class_parses(asset_class: AssetClass):
+    envelope = app.call(
+        "lookup", {"isin": "US0378331005", "asset_class": asset_class.value, "validate_only": True}
+    )
+    assert envelope.exit_code == 0
+    query = LookupArgs(isin="US0378331005", asset_class=asset_class.value).query()
+    assert query.asset_class is asset_class
+
+
+def test_lookup_asset_class_flag_lists_only_supported_classes():
+    commands = app.manifest()["commands"]
+    assert isinstance(commands, dict)
+    flag = commands["lookup"]["flags"]["asset-class"]
+    assert flag["enum_values"] == ["equity", "fixed_income", "cash", "commodity", "fx", "index"]
 
 
 def test_lookup_negative_limit_is_arg_error():

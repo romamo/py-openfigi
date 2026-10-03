@@ -33,6 +33,12 @@ _MARKET_SECTOR_TO_ASSET_CLASS: dict[str, AssetClass] = {
     "Pfd": AssetClass.EQUITY,
 }
 
+# Asset classes some OpenFIGI market sector maps to, in AssetClass order; a query for any other
+# (real_estate, crypto, derivative, alternative) can never match a result
+SUPPORTED_ASSET_CLASSES: tuple[AssetClass, ...] = tuple(
+    c for c in AssetClass if c in _MARKET_SECTOR_TO_ASSET_CLASS.values()
+)
+
 # Only asset classes that a single market sector covers; equity (Equity, Pfd) and fixed income
 # (Corp, Govt, Mtge, Muni) span several, so they are filtered after the API call instead
 _ASSET_CLASS_TO_MARKET_SECTOR: dict[AssetClass, MarketSector] = {

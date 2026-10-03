@@ -27,6 +27,8 @@ For all mapping-job cases (`figi`, `isin`, `symbol`), the supplementary fields a
 
 `equity` spans the `Equity` and `Pfd` sectors and `fixed_income` spans `Corp`, `Govt`, `Mtge` and `Muni`, so neither is sent to the API; the Phase 2 filter applies them.
 
+No market sector maps to `real_estate`, `crypto`, `derivative` or `alternative`, so `resolve` returns `None` for them. The CLI `lookup --asset-class` rejects them as an argument error (exit `2`) and accepts only `SUPPORTED_ASSET_CLASSES`: `equity`, `fixed_income`, `cash`, `commodity`, `fx` and `index`.
+
 **FIGI caveat:** a FIGI already uniquely identifies one listing. Adding `currency` or `exchange` constraints that do not match that listing causes the API to return zero results.
 
 **ISIN:** one ISIN maps to many listings across different exchanges and currencies — supplementary filters are essential for disambiguation.

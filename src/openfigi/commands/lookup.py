@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import TYPE_CHECKING, Literal
 
 import requests
 from pydantic import ValidationError
@@ -8,13 +9,20 @@ from pydantic_market_data.models import AssetClass, Security, SecurityQuery
 from treaty import Ctx, Exit, Flag, ParseError, RequiresAny
 from urllib3.exceptions import MaxRetryError, ReadTimeoutError
 
-from ..api import OpenFIGIDataSource
+from ..api import SUPPORTED_ASSET_CLASSES, OpenFIGIDataSource
 from ..client import OpenFIGIClient
 from ..settings import OpenFIGISettings
 
 IDENTIFIERS = RequiresAny(("figi", "isin", "symbol", "desc"))
 # OpenFIGI rate limits reset per minute; used when a 429 carries no Retry-After header
 _RATE_LIMIT_WAIT_MS = 60_000
+
+if TYPE_CHECKING:
+    SupportedAssetClass = str
+else:
+    # A Literal built from the market-sector mapping, so treaty rejects the asset classes OpenFIGI
+    # cannot match and --schema lists only the others
+    SupportedAssetClass = Literal[tuple(c.value for c in SUPPORTED_ASSET_CLASSES)]
 
 
 @dataclass(frozen=True, slots=True)
@@ -25,7 +33,7 @@ class LookupArgs:
     desc: str | None = Flag(default=None, description="Security name or description")
     exchange: str | None = Flag(default=None, description="Exchange code (e.g. FP, LN)")
     currency: str | None = Flag(default=None, description="Currency code (e.g. USD, EUR)")
-    asset_class: AssetClass | None = Flag(default=None, description="Asset class")
+    asset_class: SupportedAssetClass | None = Flag(default=None, description="Asset class")
 
     def __post_init__(self) -> None:
         try:
@@ -46,7 +54,7 @@ class LookupArgs:
             description=self.desc,
             exchange=self.exchange,
             currency=self.currency,
-            asset_class=self.asset_class,
+            asset_class=AssetClass(self.asset_class) if self.asset_class is not None else None,
         )
 
 
