@@ -5,7 +5,7 @@ import pytest
 import requests
 from pydantic_market_data.models import AssetClass, Security, SecurityQuery
 
-from openfigi.api import OpenFIGIDataSource, _apply_filters
+from openfigi.api import SUPPORTED_ASSET_CLASSES, OpenFIGIDataSource, _apply_filters
 from openfigi.client import OpenFIGIClient
 from openfigi.models import IdType, MarketSector
 
@@ -73,3 +73,48 @@ def test_symbol_lookup_leaves_isin_empty():
     ds = OpenFIGIDataSource(client=CannedClient([{"data": [APPLE]}]))
     results, _ = ds.resolve_candidates(SecurityQuery(symbol="AAPL"))
     assert results[0].isin is None
+
+
+UNMAPPED_ASSET_CLASSES = [c for c in AssetClass if c not in SUPPORTED_ASSET_CLASSES]
+
+# One query per resolve path; the canned body fits the endpoint each path posts to
+IDENTIFIER_PATHS = [
+    ({"figi": "BBG000B9XRY4"}, [{"data": [APPLE]}]),
+    ({"isin": "US0378331005"}, [{"data": [APPLE]}]),
+    ({"symbol": "AAPL"}, [{"data": [APPLE]}]),
+    ({"description": "apple"}, {"data": [APPLE]}),
+]
+
+
+def test_unmapped_asset_classes_are_the_four_without_a_market_sector():
+    assert set(UNMAPPED_ASSET_CLASSES) == {
+        AssetClass.REAL_ESTATE,
+        AssetClass.CRYPTO,
+        AssetClass.DERIVATIVE,
+        AssetClass.ALTERNATIVE,
+    }
+
+
+@pytest.mark.parametrize("asset_class", UNMAPPED_ASSET_CLASSES)
+@pytest.mark.parametrize(("identifier", "body"), IDENTIFIER_PATHS)
+def test_unmapped_asset_class_resolves_none_without_a_request(
+    asset_class: AssetClass, identifier: dict[str, str], body: Any
+):
+    client = CannedClient(body)
+    ds = OpenFIGIDataSource(client=client)
+    query = SecurityQuery(**identifier, asset_class=asset_class)
+    assert ds.resolve_candidates(query) == ([], 0)
+    assert ds.resolve(query) is None
+    assert client.payloads == []
+
+
+@pytest.mark.parametrize(("identifier", "body"), IDENTIFIER_PATHS)
+def test_supported_asset_class_still_sends_the_request(identifier: dict[str, str], body: Any):
+    client = CannedClient(body)
+    ds = OpenFIGIDataSource(client=client)
+    results, total = ds.resolve_candidates(
+        SecurityQuery(**identifier, asset_class=AssetClass.EQUITY)
+    )
+    assert len(client.payloads) == 1
+    assert total == 1
+    assert [str(r.symbol) for r in results] == ["AAPL"]
