@@ -33,22 +33,13 @@ _MARKET_SECTOR_TO_ASSET_CLASS: dict[str, AssetClass] = {
     "Pfd": AssetClass.EQUITY,
 }
 
-_ASSET_CLASS_TO_MARKET_SECTOR: dict[str, MarketSector] = {
-    "EQUITY": MarketSector.EQUITY,
-    "STOCK": MarketSector.EQUITY,
-    "CORPORATE BOND": MarketSector.CORPORATE,
-    "CORP": MarketSector.CORPORATE,
-    "BOND": MarketSector.CORPORATE,
-    "GOVERNMENT BOND": MarketSector.GOVERNMENT,
-    "GOVT": MarketSector.GOVERNMENT,
-    "INDEX": MarketSector.INDEX,
-    "COMMODITY": MarketSector.COMMODITY,
-    "CURRENCY": MarketSector.CURRENCY,
-    "PREFERRED": MarketSector.PREFERRED,
-    "MORTGAGE": MarketSector.MORTGAGE,
-    "MUNICIPAL BOND": MarketSector.MUNICIPAL,
-    "MUNI": MarketSector.MUNICIPAL,
-    "MONEY MARKET": MarketSector.MONEY_MARKET,
+# Only asset classes that a single market sector covers; equity (Equity, Pfd) and fixed income
+# (Corp, Govt, Mtge, Muni) span several, so they are filtered after the API call instead
+_ASSET_CLASS_TO_MARKET_SECTOR: dict[AssetClass, MarketSector] = {
+    AssetClass.CASH: MarketSector.MONEY_MARKET,
+    AssetClass.COMMODITY: MarketSector.COMMODITY,
+    AssetClass.FX: MarketSector.CURRENCY,
+    AssetClass.INDEX: MarketSector.INDEX,
 }
 
 # OpenFIGI spells minor-unit currencies the Bloomberg way, pydantic-market-data the ISO-like way
@@ -61,8 +52,7 @@ def _apply_filters(candidates: list[Security], criteria: SecurityQuery) -> list[
         ex = criteria.exchange.upper()
         filtered = [c for c in filtered if c.exchange and ex in c.exchange.upper()]
     if criteria.asset_class:
-        ac = criteria.asset_class.upper()
-        filtered = [c for c in filtered if c.asset_class and ac in c.asset_class.upper()]
+        filtered = [c for c in filtered if c.asset_class == criteria.asset_class]
     if criteria.symbol and not criteria.figi:
         sym = str(criteria.symbol).upper()
         filtered = [c for c in filtered if c.symbol and str(c.symbol).upper() == sym]
@@ -124,7 +114,11 @@ class OpenFIGIDataSource:
             return [], 0
 
         currency_str = str(criteria.currency) if criteria.currency else None
-        candidates = [self._to_security(r, currency=currency_str) for r in result.data]
+        # every listing a mapping job returns carries the ISIN it was looked up by
+        isin_str = str(criteria.isin) if job.idType == IdType.ID_ISIN else None
+        candidates = [
+            self._to_security(r, currency=currency_str, isin=isin_str) for r in result.data
+        ]
         return _apply_filters(candidates, criteria), len(candidates)
 
     def map_identifiers(self, jobs: list[MappingJob]) -> list[MappingResult]:
@@ -153,10 +147,16 @@ class OpenFIGIDataSource:
             idValue=id_value,
             exchCode=criteria.exchange,
             currency=_openfigi_currency(str(criteria.currency)) if criteria.currency else None,
-            marketSecDes=_resolve_market_sector(criteria.asset_class),
+            marketSecDes=(
+                _ASSET_CLASS_TO_MARKET_SECTOR.get(criteria.asset_class)
+                if criteria.asset_class
+                else None
+            ),
         )
 
-    def _to_security(self, item: _FIGIBase, currency: str | None = None) -> Security:
+    def _to_security(
+        self, item: _FIGIBase, currency: str | None = None, isin: str | None = None
+    ) -> Security:
         asset_class = _MARKET_SECTOR_TO_ASSET_CLASS.get(item.marketSector or "")
         symbol = item.ticker or item.compositeFIGI or item.figi
         figi_val = item.compositeFIGI or item.figi
@@ -167,19 +167,10 @@ class OpenFIGIDataSource:
             asset_class=asset_class,
             security_type=item.securityType,
             figi=figi_val,
+            isin=isin,
             currency=currency,
         )
 
 
 def _openfigi_currency(code: str) -> str:
     return _MINOR_CURRENCY_TO_OPENFIGI.get(code, code)
-
-
-def _resolve_market_sector(asset_class: str | None) -> MarketSector | None:
-    if not asset_class:
-        return None
-    ac = asset_class.upper()
-    for key, sector in _ASSET_CLASS_TO_MARKET_SECTOR.items():
-        if key in ac:
-            return sector
-    return None
