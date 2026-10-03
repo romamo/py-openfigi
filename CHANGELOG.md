@@ -8,10 +8,12 @@
 - CLI `lookup --limit` is treaty's pagination flag: `0` returns every match, and `--cursor` gets the next page. `meta.pagination.total` counts the matches after filtering, not the raw API candidates
 - `OpenFIGIClient` returns the last response once retries on 429 and 5xx run out, so `raise_for_status()` raises `requests.HTTPError` with the status instead of `requests.exceptions.RetryError`
 - `IdType`, `MarketSector` and `OptionType` are `StrEnum`s
+- `asset_class` is sent to OpenFIGI as a market sector only when one sector covers it: `cash` (`M-Mkt`) and `fx` (`Curncy`) now narrow the request too, while `equity` is no longer sent as `Equity`, so preferred shares (`Pfd`, mapped to `equity`) are no longer dropped. The post-filter compares `asset_class` exactly instead of by substring
 - Bumped `pydantic-market-data` to `>=0.10.0`: `--currency` accepts the minor-unit codes `GBX`, `ZAC` and `ILA` (and `GBp`, `ZAc`), and `GBp` now means pence, not pounds
 - CLI `lookup` declares "at least one of `--figi`, `--isin`, `--symbol`, `--desc`" as a rule, so `--help` and `--schema` show it, and returns `Security` models, so `--output-schema` carries their enums and patterns
 
 ### Added
+- An ISIN lookup returns each `Security` with `isin` set to the queried ISIN; it was `null`
 - `OpenFIGIClient` takes `proxy`, `ca_bundle` and `trust_env` to override what `requests` reads from the environment
 
 ### Fixed

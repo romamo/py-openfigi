@@ -23,7 +23,9 @@ For all mapping-job cases (`figi`, `isin`, `symbol`), the supplementary fields a
 |---|---|
 | `currency` | `MappingJob.currency` |
 | `exchange` | `MappingJob.exchCode` |
-| `asset_class` | `MappingJob.marketSecDes` |
+| `asset_class` | `MappingJob.marketSecDes`, only for `cash` (`M-Mkt`), `commodity` (`Comdty`), `fx` (`Curncy`) and `index` (`Index`) |
+
+`equity` spans the `Equity` and `Pfd` sectors and `fixed_income` spans `Corp`, `Govt`, `Mtge` and `Muni`, so neither is sent to the API; the Phase 2 filter applies them.
 
 **FIGI caveat:** a FIGI already uniquely identifies one listing. Adding `currency` or `exchange` constraints that do not match that listing causes the API to return zero results.
 
@@ -38,12 +40,12 @@ After the API returns candidates, `_apply_filters` narrows them down:
 | Field | Filter logic |
 |---|---|
 | `exchange` | Substring match on `Security.exchange` (case-insensitive) |
-| `asset_class` | Substring match on `Security.asset_class` (case-insensitive) |
+| `asset_class` | Exact match on `Security.asset_class` |
 | `symbol` | Exact match on `Security.symbol` (case-insensitive); **skipped when `figi` is set** |
 
 **`symbol`** is skipped for FIGI lookups because the query symbol may differ from the listing's actual ticker — FIGI already uniquely identifies the listing.
 
-**`currency`** is applied only at Phase 1 (API constraint). The mapping response does not return currency, so it is not available as a post-filter. The `Security` returned contains only values provided by the API.
+**`currency`** is applied only at Phase 1 (API constraint). The mapping response does not return currency, so it is not available as a post-filter; each returned `Security` carries the query's `currency` instead. Likewise, an ISIN lookup sets `Security.isin` to the queried ISIN, since every listing it returns has that ISIN.
 
 `resolve` returns the first surviving candidate, or `None` if none remain. When more than one candidate survives, a `DEBUG` message is logged.
 
