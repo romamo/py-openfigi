@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-03
+
+Not additive: requires Python 3.14+, and the CLI moves from `agentyper` to `treaty` (envelope output, invalid arguments exit `2`).
+
 ### Changed
 - **Breaking:** requires Python 3.14+ (was 3.10+)
 - **Breaking:** the CLI is built on `treaty` instead of the deprecated `agentyper`. Output is treaty's envelope (`ok`, `data`, `error`, `meta`), and invalid arguments exit `2` (was `3`)
