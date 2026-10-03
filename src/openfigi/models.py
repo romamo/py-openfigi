@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from enum import Enum
+from enum import StrEnum
 
 from pydantic import BaseModel, ConfigDict, Field
 
 
-class IdType(str, Enum):
+class IdType(StrEnum):
     ID_ISIN = "ID_ISIN"
     ID_BB_GLOBAL = "ID_BB_GLOBAL"
     ID_BB_UNIQUE = "ID_BB_UNIQUE"
@@ -30,7 +30,7 @@ class IdType(str, Enum):
     ID_BB_SEC_NUM_DES = "ID_BB_SEC_NUM_DES"
 
 
-class MarketSector(str, Enum):
+class MarketSector(StrEnum):
     COMMODITY = "Comdty"
     CORPORATE = "Corp"
     CURRENCY = "Curncy"
@@ -43,7 +43,7 @@ class MarketSector(str, Enum):
     PREFERRED = "Pfd"
 
 
-class OptionType(str, Enum):
+class OptionType(StrEnum):
     CALL = "Call"
     PUT = "Put"
 

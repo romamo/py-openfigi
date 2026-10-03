@@ -3,13 +3,13 @@ name = "py-openfigi2"
 version = "0.1.5"
 description = "OpenFIGI data source for Python"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.14"
 license = {text = "MIT"}
 authors = [{name = "Roman Medvedev", email = "pypi@romavm.dev"}]
 dependencies = [
     "requests>=2.32.0",
-    "pydantic-market-data>=0.4.0",
-    "agentyper>=0.1.12",
+    "pydantic-market-data>=0.10.0",
+    "treaty>=1.0.0rc12,<1.1",
 ]
 
 [project.urls]
@@ -56,10 +56,10 @@ markers = ["integration: tests that call the live OpenFIGI API"]
 
 [tool.ruff]
 line-length = 100
-target-version = "py310"
+target-version = "py314"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM", "PLC", "PLE"]
 
 [tool.ruff.lint.flake8-bugbear]
-extend-immutable-calls = ["agentyper.Option"]
+extend-immutable-calls = ["treaty.Arg", "treaty.Flag"]

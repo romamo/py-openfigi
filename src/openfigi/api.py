@@ -51,6 +51,9 @@ _ASSET_CLASS_TO_MARKET_SECTOR: dict[str, MarketSector] = {
     "MONEY MARKET": MarketSector.MONEY_MARKET,
 }
 
+# OpenFIGI spells minor-unit currencies the Bloomberg way, pydantic-market-data the ISO-like way
+_MINOR_CURRENCY_TO_OPENFIGI: dict[str, str] = {"GBX": "GBp", "ZAC": "ZAr", "ILA": "ILs"}
+
 
 def _apply_filters(candidates: list[Security], criteria: SecurityQuery) -> list[Security]:
     filtered = candidates
@@ -141,14 +144,15 @@ class OpenFIGIDataSource:
         """Retrieve valid enum values for a mapping field (e.g. 'exchCode', 'currency')."""
         resp = self.client.get(f"/v3/mapping/values/{key}")
         resp.raise_for_status()
-        return resp.json()  # type: ignore[no-any-return]
+        values: list[str] = resp.json()["values"]
+        return values
 
     def _build_job(self, id_type: IdType, id_value: str, criteria: SecurityQuery) -> MappingJob:
         return MappingJob(
             idType=id_type,
             idValue=id_value,
             exchCode=criteria.exchange,
-            currency=str(criteria.currency) if criteria.currency else None,
+            currency=_openfigi_currency(str(criteria.currency)) if criteria.currency else None,
             marketSecDes=_resolve_market_sector(criteria.asset_class),
         )
 
@@ -165,6 +169,10 @@ class OpenFIGIDataSource:
             figi=figi_val,
             currency=currency,
         )
+
+
+def _openfigi_currency(code: str) -> str:
+    return _MINOR_CURRENCY_TO_OPENFIGI.get(code, code)
 
 
 def _resolve_market_sector(asset_class: str | None) -> MarketSector | None:

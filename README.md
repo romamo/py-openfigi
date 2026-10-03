@@ -4,6 +4,8 @@ Python client for the [OpenFIGI API](https://www.openfigi.com/api) — map ISINs
 
 ## Installation
 
+Requires Python 3.14+.
+
 ```bash
 pip install py-openfigi
 ```
@@ -36,7 +38,19 @@ items = ds.search("Apple")
 openfigi lookup --isin US0378331005
 openfigi lookup --symbol AAPL --exchange US --format json
 openfigi lookup --desc "Apple" --limit 5
+openfigi manifest    # every command, flag and exit code, for agents
 ```
+
+The CLI is built on [treaty](https://github.com/romamo/treaty): output is a JSON envelope when stdout is not a terminal, and failures exit with a typed code:
+
+| Exit | Code            | Meaning                                    |
+|------|-----------------|--------------------------------------------|
+| 2    | `ARG_ERROR`     | Invalid arguments; nothing was sent        |
+| 5    | `NOT_FOUND`     | No security matches                        |
+| 8    | `AUTH_REQUIRED` | `OPENFIGI_API_KEY` was rejected            |
+| 10   | `TIMEOUT`       | OpenFIGI did not answer in time            |
+| 11   | `RATE_LIMITED`  | Rate limit exceeded; retry after `error.retry_after_ms` |
+| 12   | `UNAVAILABLE`   | OpenFIGI unreachable or returned HTTP 5xx  |
 
 ## Configuration
 
