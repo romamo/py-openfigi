@@ -94,7 +94,17 @@ class OpenFIGIDataSource:
 
         filtered_candidates — all results surviving Phase 2 filters, in API order.
         total_api_count    — raw candidate count returned by the API before any filtering.
+
+        An asset_class outside SUPPORTED_ASSET_CLASSES returns ([], 0) without a request.
         """
+        if criteria.asset_class and criteria.asset_class not in SUPPORTED_ASSET_CLASSES:
+            logger.debug(
+                "Skipping request: no OpenFIGI market sector maps to asset class %s; supported: %s",
+                criteria.asset_class,
+                ", ".join(SUPPORTED_ASSET_CLASSES),
+            )
+            return [], 0
+
         job: MappingJob | None = None
 
         if criteria.figi:

@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+### Fixed
+- `OpenFIGIDataSource.resolve` and `resolve_candidates` return `None` and `([], 0)` for an `asset_class` of `real_estate`, `crypto`, `derivative` or `alternative` without calling `/v3/mapping` or `/v3/search`; the request was sent and every result then filtered out (#5)
+
 ## [0.2.1] - 2026-10-03
 
 ### Fixed
