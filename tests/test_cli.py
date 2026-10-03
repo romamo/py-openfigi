@@ -2,11 +2,14 @@ from pathlib import Path
 
 import pytest
 import requests
+from pydantic_market_data.models import SecurityQuery
 from treaty import CliExit
 
+from openfigi.api import OpenFIGIDataSource
 from openfigi.cli import app
 from openfigi.client import OpenFIGIClient
 from openfigi.commands.lookup import _http_error
+from openfigi.models import IdType
 
 
 def _http_failure(status: int, headers: dict[str, str] | None = None) -> requests.HTTPError:
@@ -73,3 +76,13 @@ def test_client_reads_environment_by_default():
     client = OpenFIGIClient()
     assert client.session.proxies == {}
     assert client.session.trust_env is True
+
+
+@pytest.mark.parametrize(
+    ("currency", "expected"),
+    [("GBp", "GBp"), ("GBX", "GBp"), ("ZAc", "ZAr"), ("ILA", "ILs"), ("gbp", "GBP"), (None, None)],
+)
+def test_mapping_job_uses_openfigi_currency_spelling(currency: str | None, expected: str | None):
+    ds = OpenFIGIDataSource(client=OpenFIGIClient())
+    job = ds._build_job(IdType.TICKER, "VOD", SecurityQuery(symbol="VOD", currency=currency))
+    assert job.currency == expected
