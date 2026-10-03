@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-10-03
+
 ### Fixed
 - CLI `lookup --asset-class` rejects `real_estate`, `crypto`, `derivative` and `alternative` as an argument error (exit `2`) naming the supported classes; no OpenFIGI market sector maps to them, so the lookup always ended `NOT_FOUND`. `--schema` lists only `equity`, `fixed_income`, `cash`, `commodity`, `fx` and `index`, and `openfigi.api.SUPPORTED_ASSET_CLASSES` exposes them (#3)
 
