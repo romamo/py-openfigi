@@ -6,6 +6,7 @@ import requests
 from pydantic import ValidationError
 from pydantic_market_data.models import AssetClass, Security, SecurityQuery
 from treaty import Ctx, Exit, Flag, ParseError, RequiresAny
+from urllib3.exceptions import MaxRetryError, ReadTimeoutError
 
 from ..api import OpenFIGIDataSource
 from ..client import OpenFIGIClient
@@ -65,11 +66,19 @@ def lookup(args: LookupArgs, ctx: Ctx) -> list[Security]:
     except requests.Timeout as exc:
         raise Exit.TIMEOUT(f"OpenFIGI did not answer in time: {exc}") from exc
     except requests.ConnectionError as exc:
-        raise Exit.UNAVAILABLE(f"Cannot reach OpenFIGI: {exc}") from exc
+        raise _connection_error(exc) from exc
 
     if not results:
         raise Exit.NOT_FOUND("Security not found")
     return results
+
+
+def _connection_error(exc: requests.ConnectionError) -> Exception:
+    # once retries run out, requests reports a read timeout as ConnectionError, not Timeout
+    cause = exc.args[0] if exc.args else None
+    if isinstance(cause, MaxRetryError) and isinstance(cause.reason, ReadTimeoutError):
+        return Exit.TIMEOUT(f"OpenFIGI did not answer in time: {exc}")
+    return Exit.UNAVAILABLE(f"Cannot reach OpenFIGI: {exc}")
 
 
 def _http_error(exc: requests.HTTPError) -> Exception:

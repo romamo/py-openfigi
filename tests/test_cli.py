@@ -4,11 +4,12 @@ import pytest
 import requests
 from pydantic_market_data.models import SecurityQuery
 from treaty import CliExit
+from urllib3.exceptions import MaxRetryError, NewConnectionError, ReadTimeoutError
 
 from openfigi.api import OpenFIGIDataSource
 from openfigi.cli import app
 from openfigi.client import OpenFIGIClient
-from openfigi.commands.lookup import _http_error
+from openfigi.commands.lookup import _connection_error, _http_error
 from openfigi.models import IdType
 
 
@@ -86,3 +87,20 @@ def test_mapping_job_uses_openfigi_currency_spelling(currency: str | None, expec
     ds = OpenFIGIDataSource(client=OpenFIGIClient())
     job = ds._build_job(IdType.TICKER, "VOD", SecurityQuery(symbol="VOD", currency=currency))
     assert job.currency == expected
+
+
+def _connection_failure(reason: Exception) -> requests.ConnectionError:
+    return requests.ConnectionError(MaxRetryError(None, "/v3/mapping", reason))
+
+
+def test_read_timeout_after_retries_is_timeout():
+    # requests wraps a read timeout that exhausted the retries in ConnectionError, not Timeout
+    exit_ = _connection_error(_connection_failure(ReadTimeoutError(None, "/", "Read timed out")))
+    assert isinstance(exit_, CliExit)
+    assert exit_.code == "TIMEOUT"
+
+
+def test_refused_connection_is_unavailable():
+    exit_ = _connection_error(_connection_failure(NewConnectionError(None, "refused")))
+    assert isinstance(exit_, CliExit)
+    assert exit_.code == "UNAVAILABLE"
